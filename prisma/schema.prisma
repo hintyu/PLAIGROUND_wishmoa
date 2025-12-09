@@ -1,0 +1,135 @@
+// Prisma Schema
+// .cursorrule: No Hardcoding 준수 - DATABASE_URL은 환경변수에서 관리
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// 사용자 (NextAuth.js 자동 관리)
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  provider      String?
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  accounts Account[]
+  sessions Session[]
+  projects Project[]
+
+  @@map("users")
+}
+
+model Account {
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String
+  expires    DateTime
+
+  @@id([identifier, token])
+  @@map("verification_tokens")
+}
+
+// 펀딩 프로젝트
+model Project {
+  projectId       String   @id @default(cuid()) @map("project_id")
+  userId          String   @map("user_id")
+  projectTitle    String   @map("project_title")
+  projectSubtitle String   @map("project_subtitle")
+  accountBank     String   @map("account_bank")
+  accountNumber   String   @map("account_number")
+  accountHolder   String   @map("account_holder")
+  projectStatus   String   @default("active") @map("project_status") // active, hidden, deleted
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items Item[]
+
+  @@index([userId])
+  @@index([projectStatus])
+  @@map("projects")
+}
+
+// 선물 품목
+model Item {
+  itemId     String   @id @default(cuid()) @map("item_id")
+  projectId  String   @map("project_id")
+  itemTitle  String   @map("item_title")
+  itemUrl    String   @map("item_url")
+  itemImage  String?  @map("item_image")
+  itemPrice  Int      @map("item_price")
+  itemStatus String   @default("active") @map("item_status") // active, hidden, completed, deleted
+  itemOrder  Int      @default(0) @map("item_order")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  project   Project    @relation(fields: [projectId], references: [projectId], onDelete: Cascade)
+  donations Donation[]
+
+  @@index([projectId])
+  @@index([itemStatus])
+  @@index([itemOrder])
+  @@map("items")
+}
+
+// 후원
+model Donation {
+  donationId      String   @id @default(cuid()) @map("donation_id")
+  itemId          String   @map("item_id")
+  donatorNm       String   @map("donator_nm")
+  donatorMessage  String?  @map("donator_message")
+  donationAmount  Int      @map("donation_amount")
+  donationStatus  String   @default("pending") @map("donation_status") // pending, confirmed, deleted
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  item Item @relation(fields: [itemId], references: [itemId], onDelete: Cascade)
+
+  @@index([itemId])
+  @@index([donationStatus])
+  @@index([createdAt])
+  @@map("donations")
+}
+
